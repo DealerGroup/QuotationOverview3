@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quotation Information Display</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chart.js Datalabels Plugin CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <style>
+        /* Custom styles for the display */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F5F4D6; /* Changed to pastel yellow/green */
+            color: #4A6572; /* Soft Dark Blue/Gray text */
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .table-container { /* General table container style */
+            overflow-x: auto; /* Enable horizontal scrolling on small screens */
+            background-color: #F8E7C8;
+            padding: 20px;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .data-table th, .data-table td { /* General table cell styling */
+            padding: 12px 16px;
+            text-align: left;
+            white-space: nowrap; /* Prevent text wrapping in cells */
+        }
+        .data-table thead {
+            background-color: #F8E7C8; /* Pastel Medium Cream/Yellow */
+        }
+        .data-table tbody tr:nth-child(even) {
+            background-color: #FFF9E9; /* Pastel Lighter Cream for even rows */
+        }
+        .data-table tbody tr:hover {
+            background-color: #F8D69A; /* Pastel Slightly More Saturated Cream on hover */
+        }
+        /* Status colors - adapted for pastel theme */
+        .status-on-time {
+            color: #4CAF50; /* Green - slightly darker for contrast */
+            font-weight: bold;
+        }
+        .status-delayed {
+            color: #FF9800; /* Orange - slightly darker for contrast */
+            font-weight: bold;
+        }
+        .status-cancelled {
+            color: #F44336; /* Red - slightly darker for contrast */
+            font-weight: bold;
+        }
+        .status-departed {
+            color: #2196F3; /* Blue - slightly darker for contrast */
+            font-weight: bold;
+        }
+        .status-arrived {
+            color: #4CAF50; /* Green - slightly darker for contrast */
+            font-weight: bold;
+        }
+        .status-boarding {
+            color: #9C27B0; /* Purple - slightly darker for contrast */
+            font-weight: bold;
+        }
+        /* Chart and pending table container styling */
+        .chart-and-table-container { /* Renamed for clarity, holds chart, pending, and ordered tables */
+            display: flex;
+            flex-wrap: wrap; /* Allow wrapping on smaller screens */
+            gap: 24px; /* Space between items */
+            margin-bottom: 24px;
+            justify-content: center; /* Center items when they wrap */
+        }
+        .chart-container,
+        .pending-table-container,
+        .ordered-table-container { /* Apply consistent styling to all three main containers */
+            background-color: #F8E7C8;
+            padding: 20px;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            flex: 1; /* Allow each to grow */
+            min-width: 300px; /* Minimum width for each item */
+            max-width: 480px; /* Adjusted max-width for better responsiveness */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center; /* Center content vertically */
+        }
+        #statusChart {
+            max-width: 400px; /* Limit chart size for better donut appearance */
+            max-height: 400px;
+        }
+        .pending-table th, .pending-table td,
+        .ordered-table th, .ordered-table td { /* Specific styling for pending and ordered tables */
+            padding: 10px 14px;
+            text-align: left;
+            /* Removed white-space: nowrap; to allow wrapping */
+        }
+        /* Specific styling for Client and Project Name columns in Pending Projects table */
+        .pending-table th:nth-child(1),
+        .pending-table td:nth-child(1),
+        .ordered-table th:nth-child(1),
+        .ordered-table td:nth-child(1) { /* Client column */
+            max-width: 150px; /* Adjust as needed */
+            word-wrap: break-word; /* Allows long words to break and wrap */
+        }
+        .pending-table th:nth-child(2),
+        .pending-table td:nth-child(2) { /* Project Name column in Pending */
+            max-width: 200px; /* Adjust as needed */
+            word-wrap: break-word; /* Allows long words to break and wrap */
+        }
+        .pending-table thead,
+        .ordered-table thead {
+            background-color: #F8D69A; /* Slightly darker pastel for header */
+        }
+        .pending-table tbody tr:nth-child(even),
+        .ordered-table tbody tr:nth-child(even) {
+            background-color: #FFF9E9;
+        }
+        .pending-table tbody tr:hover,
+        .ordered-table tbody tr:hover {
+            background-color: #F8D69A;
+        }
+
+        /* Full quotation table styling */
+        .full-quotation-table-wrapper {
+            margin-top: 24px; /* Space from the section above */
+        }
+        .full-quotation-table-container {
+            background-color: #F8E7C8;
+            padding: 20px;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            overflow-x: auto; /* Ensure horizontal scrolling for this table */
+        }
+        .full-quotation-table th, .full-quotation-table td {
+            padding: 12px 16px;
+            text-align: left;
+            white-space: nowrap; /* Prevent text wrapping in cells */
+        }
+        .full-quotation-table thead {
+            background-color: #F8D69A; /* Consistent header color */
+        }
+        .full-quotation-table tbody tr:nth-child(even) {
+            background-color: #FFF9E9;
+        }
+        .full-quotation-table tbody tr:hover {
+            background-color: #F8D69A;
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <div class="container mx-auto p-4 flex-grow">
+        <h1 class="text-4xl font-extrabold text-center mb-8" style="color: #263238;">
+            <span class="bg-gradient-to-r from-blue-400 to-purple-500 text-transparent bg-clip-text">
+                Quotation Information Display
+            </span>
+        </h1>
+
+        <div id="loading-indicator" class="text-center text-lg text-gray-400 mb-4 hidden">
+            Loading quotation data...
+        </div>
+
+        <div id="error-message" class="bg-red-600 text-white p-4 rounded-lg shadow-lg mb-4 hidden text-center" role="alert">
+            <p class="font-bold">Error:</p>
+            <p id="error-text"></p>
+        </div>
+
+        <!-- Container for Chart, Pending Quotation Table, and Ordered Quotation Table -->
+        <div class="chart-and-table-container">
+            <!-- Chart Container -->
+            <div class="chart-container">
+                <h2 class="text-2xl font-bold text-center mb-4" style="color: #263238;">Quotation Status Overview</h2>
+                <canvas id="statusChart"></canvas>
+            </div>
+
+            <!-- Pending Quotation Table Container -->
+            <div class="pending-table-container">
+                <h2 class="text-2xl font-bold text-center mb-4" style="color: #263238;">Pending Quotation</h2>
+                <table id="pending-status-table" class="min-w-full pending-table">
+                    <thead>
+                        <tr>
+                            <th class="py-3 px-4 uppercase font-semibold text-sm" style="color: #263238; border-bottom: 1px solid #F8D69A;">Client</th>
+                            <th class="py-3 px-4 uppercase font-semibold text-sm" style="color: #263238; border-bottom: 1px solid #F8D69A;">Project Name</th>
+                            <th class="py-3 px-4 uppercase font-semibold text-sm" style="color: #263238; border-bottom: 1px solid #F8D69A;">Engr.</th>
+                            <th class="py-3 px-4 uppercase font-semibold text-sm" style="color: #263238; border-bottom: 1px solid #F8D69A;">Coor.</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pending-table-body" class="divide-y" style="border-color: #F8D69A;">
+                        <!-- Pending data will be inserted here by JavaScript -->
+                    </tbody>
+                </table>
+                <div id="no-pending-quotation-data" class="text-center py-4 text-gray-600 hidden">No pending quotations.</div>
+            </div>
+
+            <!-- Ordered Quotation Table Container -->
+            <div class="ordered-table-container">
+                <h2 class="text-2xl font-bold text-center mb-4" style="color: #263238;">Ordered Quotation</h2>
+                <table id="ordered-quotation-table" class="min-w-full ordered-table">
+                    <thead>
+                        <tr>
+                            <th class="py-3 px-4 uppercase font-semibold text-sm" style="color: #263238; border-bottom: 1px solid #F8D69A;">Client</th>
+                            <th class="py-3 px-4 uppercase font-semibold text-sm" style="color: #263238; border-bottom: 1px solid #F8D69A;">Quote Number</th>
+                            <th class="py-3 px-4 uppercase font-semibold text-sm" style="color: #263238; border-bottom: 1px solid #F8D69A;">Date Ordered</th>
+                            <th class="py-3 px-4 uppercase font-semibold text-sm" style="color: #263238; border-bottom: 1px solid #F8D69A;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ordered-table-body" class="divide-y" style="border-color: #F8D69A;">
+                        <!-- Ordered data will be inserted here by JavaScript -->
+                    </tbody>
+                </table>
+                <div id="no-ordered-quotation-data" class="text-center py-4 text-gray-600 hidden">No ordered quotations.</div>
+            </div>
+        </div>
+
+        <!-- NEW: Container for All Quotation Data Table -->
+        <div class="full-quotation-table-wrapper">
+            <h2 class="text-2xl font-bold text-center mb-4" style="color: #263238;">All Quotation Data</h2>
+            <div class="full-quotation-table-container">
+                <table id="full-quotation-table" class="min-w-full data-table">
+                    <thead>
+                        <tr id="full-quotation-table-headers">
+                            <th class="py-3 px-4 uppercase font-semibold text-sm" style="color: #263238; border-bottom: 1px solid #F8D69A;">Client</th>
+                            <th class="py-3 px-4 uppercase font-semibold text-sm" style="color: #263238; border-bottom: 1px solid #F8D69A;">Project Name</th>
+                            <th class="py-3 px-4 uppercase font-semibold text-sm" style="color: #263238; border-bottom: 1px solid #F8D69A;">Quote Number</th>
+                            <th class="py-3 px-4 uppercase font-semibold text-sm" style="color: #263238; border-bottom: 1px solid #F8D69A;">Date Ordered</th>
+                            <th class="py-3 px-4 uppercase font-semibold text-sm" style="color: #263238; border-bottom: 1px solid #F8D69A;">Engr.</th>
+                            <th class="py-3 px-4 uppercase font-semibold text-sm" style="color: #263238; border-bottom: 1px solid #F8D69A;">Coor.</th>
+                            <th class="py-3 px-4 uppercase font-semibold text-sm" style="color: #263238; border-bottom: 1px solid #F8D69A;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="full-quotation-table-body" class="divide-y" style="border-color: #F8D69A;">
+                        <!-- Full quotation data will be inserted here by JavaScript -->
+                    </tbody>
+                </table>
+                <div id="no-full-data" class="text-center py-4 text-gray-600 hidden">No quotation data available.</div>
+            </div>
+        </div>
+
+        <div class="text-center text-sm text-gray-500 mt-6" style="color: #4A6572;">
+            Last updated: <span id="last-updated">N/A</span> | Auto-refresh every 30 seconds (only on data change)
+        </div>
+    </div>
+
+    <script>
+        // Register the datalabels plugin globally
+        Chart.register(ChartDataLabels);
+
+        const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQBeS8bmp_LN839-AePYVGVcp2YXZhmusF1NG0y9wCvW2_3VAJZ4sAm7m7PWPGIFOp4nA3CIalq5IO5/pub?output=csv';
+        const REFRESH_INTERVAL = 30000; // 30 seconds
+
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const errorMessageDiv = document.getElementById('error-message');
+        const errorText = document.getElementById('error-text');
+        const lastUpdatedSpan = document.getElementById('last-updated');
+        const statusChartCanvas = document.getElementById('statusChart');
+        const pendingTableBody = document.getElementById('pending-table-body');
+        const noPendingQuotationDataMessage = document.getElementById('no-pending-quotation-data');
+        const orderedTableBody = document.getElementById('ordered-table-body');
+        const noOrderedQuotationDataMessage = document.getElementById('no-ordered-quotation-data');
+        const fullQuotationTableBody = document.getElementById('full-quotation-table-body');
+        const noFullDataMessage = document.getElementById('no-full-data');
+
+        let myChart = null; // Global variable to hold the Chart.js instance
+        let previousCsvContent = ''; // Variable to store the last fetched CSV content for comparison
+
+        /**
+         * Displays an error message on the screen.
+         * @param {string} message - The error message to display.
+         */
+        function displayError(message) {
+            errorText.textContent = message;
+            errorMessageDiv.classList.remove('hidden');
+        }
+
+        /**
+         * Hides any displayed error message.
+         */
+        function hideError() {
+            errorMessageDiv.classList.add('hidden');
+            errorText.textContent = '';
+        }
+
+        /**
+         * Parses CSV text into an array of objects and extracts headers.
+         * Assumes the first row is the header.
+         * @param {string} csvText - The CSV data as a string.
+         * @returns {{headers: Array<string>, data: Array<Object>}} An object containing headers and data.
+         */
+        function parseCSV(csvText) {
+            const lines = csvText.trim().split('\n');
+            if (lines.length === 0) {
+                return { headers: [], data: [] };
+            }
+
+            const headers = lines[0].split(',').map(header => header.trim().replace(/"/g, ''));
+            const data = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split(',').map(value => value.trim().replace(/"/g, ''));
+                // Ensure the number of values matches the number of headers
+                if (values.length === headers.length) {
+                    const row = {};
+                    headers.forEach((header, index) => {
+                        row[header] = values[index];
+                    });
+                    data.push(row);
+                }
+            }
+            return { headers, data };
+        }
+
+        /**
+         * Gets the CSS class for a given status.
+         * @param {string} status - The status string.
+         * @returns {string} The CSS class name.
+         */
+        function getStatusClass(status) {
+            const lowerStatus = status.toLowerCase();
+            if (lowerStatus.includes('on time')) return 'status-on-time';
+            if (lowerStatus.includes('delayed')) return 'status-delayed';
+            if (lowerStatus.includes('cancelled')) return 'status-cancelled';
+            if (lowerStatus.includes('departed')) return 'status-departed';
+            if (lowerStatus.includes('arrived')) return 'status-arrived';
+            if (lowerStatus.includes('boarding')) return 'status-boarding';
+            return ''; // Default or no specific class
+        }
+
+        /**
+         * Helper function to get consistent colors for chart segments.
+         * @param {string} label - The status label.
+         * @returns {string} The RGBA color string.
+         */
+        function getChartColors(label) {
+            const lowerLabel = label.toLowerCase();
+            if (lowerLabel.includes('on time')) return 'rgba(168, 230, 207, 0.8)'; /* Light Green Pastel */
+            if (lowerLabel.includes('delayed')) return 'rgba(255, 211, 181, 0.8)'; /* Light Orange Pastel */
+            if (lowerLabel.includes('cancelled')) return 'rgba(255, 171, 171, 0.8)'; /* Light Red/Pink Pastel */
+            if (lowerLabel.includes('departed')) return 'rgba(192, 224, 255, 0.8)'; /* Light Blue Pastel */
+            if (lowerLabel.includes('arrived')) return 'rgba(168, 230, 207, 0.8)'; /* Light Green Pastel */
+            if (lowerLabel.includes('boarding')) return 'rgba(212, 165, 249, 0.8)'; /* Light Purple Pastel */
+            if (lowerLabel.includes('pending')) return 'rgba(255, 171, 171, 0.8)'; /* Red Pastel for Pending */
+            if (lowerLabel.includes('in progress')) return 'rgba(192, 224, 255, 0.8)'; /* Blue Pastel for In Progress */
+            if (lowerLabel.includes('delivered')) return 'rgba(168, 230, 207, 0.8)'; /* Pastel Green for Delivered */
+            if (lowerLabel.includes('in fabrication')) return 'rgba(212, 165, 249, 0.8)'; /* Pastel Purple for In Fabrication */
+            if (lowerLabel.includes('order') && !lowerLabel.includes('on hold')) return '#FBD2D7'; /* Original color for ORDER */
+            if (lowerLabel.includes('completed')) return 'rgba(174, 234, 187, 0.8)'; /* Pastel Green for Completed */
+            if (lowerLabel.includes('on hold') && !lowerLabel.includes('order')) return 'rgba(255, 223, 186, 0.8)'; /* Original Pastel Orange for On Hold */
+            if (lowerLabel.includes('for checking')) return '#83CCD2'; /* New color for For Checking */
+            if (lowerLabel.includes('on hold order')) return '#D8B0C8'; /* New color for On Hold Order */
+            if (lowerLabel.includes('for shop drawing')) return '#E2CF88'; /* New color for For Shop Drawing */
+            return 'rgba(224, 224, 224, 0.8)'; /* Light Gray Pastel for unknown */
+        }
+
+        /**
+         * Renders or updates the quotation status chart with a minimalist style.
+         * @param {Object} statusCounts - An object where keys are status names and values are their counts.
+         */
+        function renderStatusChart(statusCounts) {
+            const ctx = statusChartCanvas.getContext('2d');
+
+            // Destroy existing chart instance if it exists
+            if (myChart) {
+                myChart.destroy();
+            }
+
+            const labels = Object.keys(statusCounts);
+            const data = Object.values(statusCounts);
+
+            const backgroundColors = labels.map(getChartColors);
+            const borderColors = labels.map(label => 'rgba(0, 0, 0, 0.3)');
+
+            myChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Number of Quotations',
+                        data: data,
+                        backgroundColor: backgroundColors,
+                        borderColor: borderColors,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '55%', // Adjusted for internal labels
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom',
+                            align: 'center',
+                            labels: {
+                                color: '#4A6572',
+                                font: {
+                                    size: 12 // Adjusted legend font size
+                                },
+                                padding: 10, // Adjusted padding for more compact look
+                                boxWidth: 20,
+                                usePointStyle: false,
+                                // Custom callback to include quantity in legend text
+                                generateLabels: function(chart) {
+                                    const data = chart.data;
+                                    if (data.labels.length && data.datasets.length) {
+                                        return data.labels.map((label, i) => {
+                                            const meta = chart.getDatasetMeta(0);
+                                            // Ensure meta.data[i] and its options exist before accessing
+                                            const style = (meta.data[i] && meta.data[i].options) ? meta.data[i].options.backgroundColor : 'rgba(224, 224, 224, 0.8)'; // Fallback color
+                                            return {
+                                                text: label, // Display only the label in the legend
+                                                fillStyle: style,
+                                                strokeStyle: style,
+                                                lineWidth: 1,
+                                                // Ensure meta.data[i] exists before checking hidden property
+                                                hidden: !chart.isDatasetVisible(0) || (meta.data[i] ? meta.data[i].hidden : false),
+                                                index: i
+                                            };
+                                        });
+                                    }
+                                    return [];
+                                }
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Quotation Status Distribution',
+                            color: '#263238',
+                            font: {
+                                size: 18
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed !== null) {
+                                        label += context.parsed;
+                                    }
+                                    return label;
+                                }
+                            }
+                        },
+                        datalabels: { // Configuration for datalabels plugin
+                            color: '#000', // Label color (adjust as needed for contrast)
+                            font: {
+                                weight: 'bold',
+                                size: 12 // Font size for labels inside donut
+                            },
+                            formatter: (value, context) => {
+                                return value; // Display only the quantity
+                            },
+                            display: function(context) {
+                                // Only display if the segment is large enough
+                                return context.dataset.data[context.dataIndex] > 0;
+                            }
+                        }
+                    },
+                    layout: {
+                        padding: {
+                            bottom: 20 // Adjusted padding to accommodate legend
+                        }
+                    }
+                }
+            });
+        }
+
+        /**
+         * Renders the pending quotation table.
+         * @param {Array<Object>} pendingQuotations - An array of quotation objects with 'Pending' status.
+         * @param {Array<string>} headers - All available headers to find relevant columns.
+         */
+        function renderPendingQuotationTable(pendingQuotations, headers) {
+            pendingTableBody.innerHTML = ''; // Clear existing rows
+            noPendingQuotationDataMessage.classList.add('hidden'); // Hide "No data" message by default
+
+            if (pendingQuotations.length === 0) {
+                noPendingQuotationDataMessage.classList.remove('hidden');
+                return;
+            }
+
+            // Dynamically find the correct headers for 'Client', 'Project Name', 'Engr.', and 'Coor.'
+            const clientHeader = headers.find(h => h.toLowerCase().includes('client')) || '';
+            const projectNameHeader = headers.find(h => h.toLowerCase().includes('project name')) || '';
+            const engrHeader = headers.find(h => h.toLowerCase() === 'engr.') || '';
+            const coorHeader = headers.find(h => h.toLowerCase() === 'coor.') || '';
+
+
+            pendingQuotations.forEach((quotation, index) => {
+                const row = document.createElement('tr');
+                if (index % 2 === 0) {
+                    row.style.backgroundColor = '#FFF9E9'; /* Pastel Lighter Cream for even rows */
+                } else {
+                    row.style.backgroundColor = '#F8E7C8'; /* Pastel Medium Cream/Yellow for odd rows */
+                }
+                row.onmouseover = () => row.style.backgroundColor = '#F8D69A'; /* Hover effect */
+                row.onmouseout = () => row.style.backgroundColor = (index % 2 === 0) ? '#FFF9E9' : '#F8E7C8';
+
+                // Client Cell
+                const clientCell = document.createElement('td');
+                clientCell.className = 'py-3 px-4 text-sm border-b';
+                clientCell.style.borderColor = '#F8D69A';
+                clientCell.style.color = '#4A6572';
+                clientCell.textContent = quotation[clientHeader] || 'N/A';
+                row.appendChild(clientCell);
+
+                // Project Name Cell
+                const projectCell = document.createElement('td');
+                projectCell.className = 'py-3 px-4 text-sm border-b';
+                projectCell.style.borderColor = '#F8D69A';
+                projectCell.style.color = '#4A6572';
+                projectCell.textContent = quotation[projectNameHeader] || 'N/A';
+                row.appendChild(projectCell);
+
+                // Engr. Cell
+                const engrCell = document.createElement('td');
+                engrCell.className = 'py-3 px-4 text-sm border-b';
+                engrCell.style.borderColor = '#F8D69A';
+                engrCell.style.color = '#4A6572';
+                engrCell.textContent = quotation[engrHeader] || 'N/A';
+                row.appendChild(engrCell);
+
+                // Coor. Cell
+                const coorCell = document.createElement('td');
+                coorCell.className = 'py-3 px-4 text-sm border-b';
+                coorCell.style.borderColor = '#F8D69A';
+                coorCell.style.color = '#4A6572';
+                coorCell.textContent = quotation[coorHeader] || 'N/A';
+                row.appendChild(coorCell);
+
+                pendingTableBody.appendChild(row);
+            });
+        }
+
+        /**
+         * Renders the ordered quotation table with specified columns.
+         * @param {Array<Object>} orderedQuotations - An array of quotation objects with 'Order' status.
+         * @param {Array<string>} headers - All available headers to find relevant columns.
+         */
+        function renderOrderedQuotationTable(orderedQuotations, headers) {
+            orderedTableBody.innerHTML = ''; // Clear existing rows
+            noOrderedQuotationDataMessage.classList.add('hidden'); // Hide "No data" message by default
+
+            if (orderedQuotations.length === 0) {
+                noOrderedQuotationDataMessage.classList.remove('hidden');
+                return;
+            }
+
+            // Define the desired order and mapping for the ordered table
+            const desiredColumns = [
+                { header: 'Client', key: headers.find(h => h.toLowerCase().includes('client')) },
+                { header: 'Quote Number', key: headers.find(h => h.toLowerCase().includes('quote number')) || headers.find(h => h.toLowerCase().includes('quotation no.')) },
+                { header: 'Date Ordered', key: headers.find(h => h.toLowerCase().includes('date ordered')) || headers.find(h => h.toLowerCase().includes('date')) },
+                { header: 'Status', key: headers.find(h => h.toLowerCase() === 'status') }
+            ].filter(col => col.key); // Filter out columns if their key is not found in CSV headers
+
+            orderedQuotations.forEach((quotation, index) => {
+                const row = document.createElement('tr');
+                if (index % 2 === 0) {
+                    row.style.backgroundColor = '#FFF9E9';
+                } else {
+                    row.style.backgroundColor = '#F8E7C8';
+                }
+                row.onmouseover = () => row.style.backgroundColor = '#F8D69A';
+                row.onmouseout = () => row.style.backgroundColor = (index % 2 === 0) ? '#FFF9E9' : '#F8E7C8';
+
+                desiredColumns.forEach(col => {
+                    const cell = document.createElement('td');
+                    cell.className = 'py-3 px-4 text-sm border-b';
+                    cell.style.borderColor = '#F8D69A';
+                    cell.style.color = '#4A6572';
+
+                    let cellContent = quotation[col.key] || 'N/A';
+
+                    if (col.header === 'Status') {
+                        const statusClass = getStatusClass(cellContent);
+                        if (statusClass) {
+                            cell.classList.add(statusClass);
+                        }
+                    }
+                    cell.textContent = cellContent;
+                    row.appendChild(cell);
+                });
+                orderedTableBody.appendChild(row);
+            });
+        }
+
+        /**
+         * Renders the full quotation data table with specified columns.
+         * @param {Array<Object>} allQuotations - The full array of quotation objects.
+         * @param {Array<string>} headers - All available headers to find relevant columns.
+         */
+        function renderFullQuotationTable(allQuotations, headers) {
+            fullQuotationTableBody.innerHTML = ''; // Clear existing rows
+            noFullDataMessage.classList.add('hidden'); // Hide "No data" message by default
+
+            if (allQuotations.length === 0) {
+                noFullDataMessage.classList.remove('hidden');
+                return;
+            }
+
+            // Define the desired order and mapping for the full table
+            const desiredColumns = [
+                { header: 'Client', key: headers.find(h => h.toLowerCase().includes('client')) },
+                { header: 'Project Name', key: headers.find(h => h.toLowerCase().includes('project name')) },
+                { header: 'Quote Number', key: headers.find(h => h.toLowerCase().includes('quote number')) || headers.find(h => h.toLowerCase().includes('quotation no.')) },
+                { header: 'Date Ordered', key: headers.find(h => h.toLowerCase().includes('date ordered')) || headers.find(h => h.toLowerCase().includes('date')) },
+                { header: 'Engr.', key: headers.find(h => h.toLowerCase() === 'engr.') },
+                { header: 'Coor.', key: headers.find(h => h.toLowerCase() === 'coor.') },
+                { header: 'Status', key: headers.find(h => h.toLowerCase() === 'status') }
+            ].filter(col => col.key); // Filter out columns if their key is not found in CSV headers
+
+            allQuotations.forEach((quotation, index) => {
+                const row = document.createElement('tr');
+                if (index % 2 === 0) {
+                    row.style.backgroundColor = '#FFF9E9';
+                } else {
+                    row.style.backgroundColor = '#F8E7C8';
+                }
+                row.onmouseover = () => row.style.backgroundColor = '#F8D69A';
+                row.onmouseout = () => row.style.backgroundColor = (index % 2 === 0) ? '#FFF9E9' : '#F8E7C8';
+
+                desiredColumns.forEach(col => {
+                    const cell = document.createElement('td');
+                    cell.className = 'py-3 px-4 text-sm border-b';
+                    cell.style.borderColor = '#F8D69A';
+                    cell.style.color = '#4A6572';
+
+                    let cellContent = quotation[col.key] || 'N/A';
+
+                    if (col.header === 'Status') {
+                        const statusClass = getStatusClass(cellContent);
+                        if (statusClass) {
+                            cell.classList.add(statusClass);
+                        }
+                    }
+                    cell.textContent = cellContent;
+                    row.appendChild(cell);
+                });
+                fullQuotationTableBody.appendChild(row);
+            });
+        }
+
+
+        /**
+         * Fetches quotation data from the CSV URL and updates the display only if data has changed.
+         */
+        async function fetchQuotationData() {
+            loadingIndicator.classList.remove('hidden');
+            hideError();
+            try {
+                console.log("Fetching data from URL:", CSV_URL); // Log the URL being fetched
+                const response = await fetch(CSV_URL, { cache: 'no-store' }); // Added cache: 'no-store'
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const csvText = await response.text();
+
+                // Compare with previous content to decide if update is needed
+                if (csvText === previousCsvContent) {
+                    console.log("No new data or changes detected. Display not updated.");
+                    loadingIndicator.classList.add('hidden');
+                    return; // Exit if no change
+                }
+
+                // Data has changed, proceed with update
+                previousCsvContent = csvText; // Update previous content
+                console.log("Data changed. Updating display.");
+
+                const { headers, data: quotations } = parseCSV(csvText);
+
+                // Find the 'Status' header dynamically
+                const statusHeader = headers.find(h => h.toLowerCase() === 'status');
+                const statusCounts = {};
+                const pendingQuotations = [];
+                const orderedQuotations = [];
+
+                if (statusHeader) {
+                    quotations.forEach(quotation => {
+                        const status = quotation[statusHeader] || 'Unknown';
+                        statusCounts[status] = (statusCounts[status] || 0) + 1;
+                        if (status.toLowerCase().includes('pending')) {
+                            pendingQuotations.push(quotation);
+                        }
+                        // Filter for "Order" status, including "On Hold Order"
+                        if (status.toLowerCase() === 'order' || status.toLowerCase() === 'on hold order') {
+                            orderedQuotations.push(quotation);
+                        }
+                    });
+                } else {
+                    console.warn("Status column not found in CSV data.");
+                }
+
+                renderStatusChart(statusCounts);
+                renderPendingQuotationTable(pendingQuotations, headers);
+                renderOrderedQuotationTable(orderedQuotations, headers);
+                renderFullQuotationTable(quotations, headers);
+                lastUpdatedSpan.textContent = new Date().toLocaleTimeString();
+            } catch (error) {
+                console.error("Failed to fetch quotation data:", error);
+                displayError(`Could not load quotation data. This might be due to a network error (e.g., no internet connection), or browser security settings (CORS) blocking access. Please ensure you are online and that your Google Sheet is published to the web as a CSV and the URL is correct.`);
+
+                pendingTableBody.innerHTML = `<tr><td colspan="4" class="text-center py-4" style="color: #F44336;">Failed to load pending quotations.</td></tr>`;
+                orderedTableBody.innerHTML = `<tr><td colspan="4" class="text-center py-4" style="color: #F44336;">Failed to load ordered quotations.</td></tr>`;
+                fullQuotationTableBody.innerHTML = `<tr><td colspan="7" class="text-center py-4" style="color: #F44336;">Failed to load all quotation data.</td></tr>`;
+
+            } finally {
+                loadingIndicator.classList.add('hidden');
+            }
+        }
+
+        // Initial fetch when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            // Add a small delay before the initial fetch
+            setTimeout(fetchQuotationData, 100); 
+            setInterval(fetchQuotationData, REFRESH_INTERVAL);
+        });
+    </script>
+</body>
+</html>
